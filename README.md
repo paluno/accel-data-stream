@@ -2,6 +2,8 @@
 
 ![](screenshots/basalt.png)
 
+![](screenshots/android.png)
+
 Example app demonstrating how to stream accelerometer data using AppMessage
 callbacks. To do this, accelerometer data is gathered via the AccelDataService:
 
