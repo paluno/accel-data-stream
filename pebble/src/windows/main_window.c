@@ -14,6 +14,9 @@ static AppTimer *s_packets_per_second_timer;
 static bool s_sending;
 static int s_send_counter, s_packets_per_second;
 
+static int s_hand_sequence = 0;  // how many of the sequence of keys to change the hand have been pressed?
+static bool s_f_left_hand;
+
 static void packets_per_second_handler(void *context) {
   s_packets_per_second = s_send_counter;
   const int samples_per_second = s_packets_per_second * SAMPLES_PER_UPDATE;
@@ -58,6 +61,8 @@ static void battery_handler(BatteryChargeState charge_state) {
 }
 
 static void select_click_handler(ClickRecognizerRef recognizer, void *context) {
+  s_hand_sequence = 0;
+  
   if(!s_sending) {
     // Begin sending data
     s_sending = true;
@@ -86,8 +91,39 @@ static void select_click_handler(ClickRecognizerRef recognizer, void *context) {
   }
 }
 
+static void change_hand() {
+  s_hand_sequence == 0
+  s_f_left_hand = !s_f_left_hand;
+  if (s_f_left_hand) {
+    text_layer_set_text(s_text_layer_hand, "L");
+  }
+  else {
+    text_layer_set_text(s_text_layer_hand, "R");
+  }
+}
+
+static void up_click_handler(ClickRecognizerRef recognizer, void *context) {
+  // correct sequence: up down up
+  if (s_hand_sequence == 0)
+    ++s_hand_sequence;
+  else if (s_hand_sequence == 2)
+    change_hand();
+  else
+    s_hand_sequence = 0;
+}
+
+static void down_click_handler(ClickRecognizerRef recognizer, void *context) {
+  // correct sequence: up down up
+  if (s_hand_sequence == 1)
+    ++s_hand_sequence;
+  else
+    s_hand_sequence = 0;
+}
+
 static void click_config_provider(void *context) {
   window_single_click_subscribe(BUTTON_ID_SELECT, select_click_handler);
+  window_single_click_subscribe(BUTTON_ID_UP, up_click_handler);
+  window_single_click_subscribe(BUTTON_ID_DOWN, down_click_handler);
 }
 
 /* Window Layout
@@ -117,7 +153,7 @@ static void window_load(Window *window) {
   layer_add_child(window_layer, text_layer_get_layer(s_text_layer_info));
   
   s_text_layer_data = text_layer_create(GRect(bounds.origin.x, bounds.origin.y + bounds.size.h*3/4, bounds.size.w/2, bounds.size.h/4));
-  text_layer_set_text(s_text_layer_data, "Data");
+  text_layer_set_text(s_text_layer_data, "Data Buffer");
   text_layer_set_text_alignment(s_text_layer_data, GTextAlignmentCenter);
   layer_add_child(window_layer, text_layer_get_layer(s_text_layer_data));
   
@@ -125,6 +161,8 @@ static void window_load(Window *window) {
   text_layer_set_text(s_text_layer_battery, "Battery");
   text_layer_set_text_alignment(s_text_layer_battery, GTextAlignmentCenter);
   layer_add_child(window_layer, text_layer_get_layer(s_text_layer_battery));
+  
+  change_hand();
   
   battery_state_service_subscribe(battery_handler);
   battery_handler(battery_state_service_peek());  
