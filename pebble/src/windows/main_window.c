@@ -46,6 +46,17 @@ static void accel_data_handler(AccelData *data, uint32_t num_samples) {
   }
 }
 
+static void battery_handler(BatteryChargeState charge_state) {
+  static char battery_text[9];
+
+  if (charge_state.is_charging) {
+    snprintf(battery_text, sizeof(battery_text), "charging");
+  } else {
+    snprintf(battery_text, sizeof(battery_text), "%d %%", charge_state.charge_percent);
+  }
+  text_layer_set_text(s_text_layer_battery, battery_text);
+}
+
 static void select_click_handler(ClickRecognizerRef recognizer, void *context) {
   if(!s_sending) {
     // Begin sending data
@@ -114,6 +125,9 @@ static void window_load(Window *window) {
   text_layer_set_text(s_text_layer_battery, "Battery");
   text_layer_set_text_alignment(s_text_layer_battery, GTextAlignmentCenter);
   layer_add_child(window_layer, text_layer_get_layer(s_text_layer_battery));
+  
+  battery_state_service_subscribe(battery_handler);
+  battery_handler(battery_state_service_peek());  
 }
 
 static void window_unload(Window *window) {
