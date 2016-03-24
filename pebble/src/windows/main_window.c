@@ -3,7 +3,11 @@
 #define SAMPLES_PER_UPDATE 5
 
 static Window *s_window;
-static TextLayer *s_text_layer;
+
+static TextLayer *s_text_layer_hand;
+static TextLayer *s_text_layer_info;
+static TextLayer *s_text_layer_data;
+static TextLayer *s_text_layer_battery;
 
 static AppTimer *s_packets_per_second_timer;
 
@@ -17,7 +21,7 @@ static void packets_per_second_handler(void *context) {
   if(s_sending) {
     static char s_buff[32];
     snprintf(s_buff, sizeof(s_buff), "%d packets/s\n(%d samples/s)", s_packets_per_second, samples_per_second);
-    text_layer_set_text(s_text_layer, s_buff);
+    text_layer_set_text(s_text_layer_info, s_buff);
   }
 
   s_send_counter = 0;
@@ -34,6 +38,7 @@ static void send(AccelData *data, uint32_t num_samples) {
 static void accel_data_handler(AccelData *data, uint32_t num_samples) {
   // If ready to send
   if(comm_is_busy()) {
+//  if(0) {
     APP_LOG(APP_LOG_LEVEL_WARNING, "Accel sample arrived early");
     window_set_background_color(s_window, GColorRed);
   } else {
@@ -49,7 +54,7 @@ static void select_click_handler(ClickRecognizerRef recognizer, void *context) {
     accel_service_set_sampling_rate(ACCEL_SAMPLING_25HZ);
     accel_data_service_subscribe(SAMPLES_PER_UPDATE, accel_data_handler);
 
-    text_layer_set_text(s_text_layer, "Started");
+    text_layer_set_text(s_text_layer_info, "Started");
     if(s_packets_per_second_timer) {
       app_timer_cancel(s_packets_per_second_timer);
     }
@@ -61,7 +66,7 @@ static void select_click_handler(ClickRecognizerRef recognizer, void *context) {
 
     accel_data_service_unsubscribe();
 
-    text_layer_set_text(s_text_layer, "Stopped");
+    text_layer_set_text(s_text_layer_info, "Stopped");
     if(s_packets_per_second_timer) {
       app_timer_cancel(s_packets_per_second_timer);
       s_packets_per_second_timer = NULL;
@@ -74,19 +79,48 @@ static void click_config_provider(void *context) {
   window_single_click_subscribe(BUTTON_ID_SELECT, select_click_handler);
 }
 
+/* Window Layout
+ *********************
+ *  ||     |  -OOOO= *
+ *  ||     |  -OOOO= *
+ *  ||===  |    I    *
+ *-------------------*
+ *   Current Status  *
+ *-------------------*
+ * 55k     | 60 %    *
+ *********************/
+
 static void window_load(Window *window) {
   Layer *window_layer = window_get_root_layer(window);
   GRect bounds = layer_get_bounds(window_layer);
 
-  s_text_layer = text_layer_create(GRect(bounds.origin.x, bounds.origin.y + 50, bounds.size.w, bounds.size.h));
-  text_layer_set_text(s_text_layer, "Press Select to begin");
-  text_layer_set_text_alignment(s_text_layer, GTextAlignmentCenter);
-  text_layer_set_font(s_text_layer, fonts_get_system_font(FONT_KEY_GOTHIC_28_BOLD));
-  layer_add_child(window_layer, text_layer_get_layer(s_text_layer));
+  s_text_layer_hand = text_layer_create(GRect(bounds.origin.x, bounds.origin.y, bounds.size.w/2, bounds.size.h/2));
+  text_layer_set_text(s_text_layer_hand, "L");
+  text_layer_set_text_alignment(s_text_layer_hand, GTextAlignmentCenter);
+  text_layer_set_font(s_text_layer_hand, fonts_get_system_font(FONT_KEY_BITHAM_42_BOLD));
+  layer_add_child(window_layer, text_layer_get_layer(s_text_layer_hand));
+  
+  s_text_layer_info = text_layer_create(GRect(bounds.origin.x, bounds.origin.y + bounds.size.h/2, bounds.size.w, bounds.size.h/4));
+  text_layer_set_text(s_text_layer_info, "Press Select to begin");
+  text_layer_set_text_alignment(s_text_layer_info, GTextAlignmentCenter);
+  layer_add_child(window_layer, text_layer_get_layer(s_text_layer_info));
+  
+  s_text_layer_data = text_layer_create(GRect(bounds.origin.x, bounds.origin.y + bounds.size.h*3/4, bounds.size.w/2, bounds.size.h/4));
+  text_layer_set_text(s_text_layer_data, "Data");
+  text_layer_set_text_alignment(s_text_layer_data, GTextAlignmentCenter);
+  layer_add_child(window_layer, text_layer_get_layer(s_text_layer_data));
+  
+  s_text_layer_battery = text_layer_create(GRect(bounds.origin.x + bounds.size.w/2, bounds.origin.y + bounds.size.h*3/4, bounds.size.w/2, bounds.size.h/4));
+  text_layer_set_text(s_text_layer_battery, "Battery");
+  text_layer_set_text_alignment(s_text_layer_battery, GTextAlignmentCenter);
+  layer_add_child(window_layer, text_layer_get_layer(s_text_layer_battery));
 }
 
 static void window_unload(Window *window) {
-  text_layer_destroy(s_text_layer);
+  text_layer_destroy(s_text_layer_hand);
+  text_layer_destroy(s_text_layer_info);
+  text_layer_destroy(s_text_layer_data);
+  text_layer_destroy(s_text_layer_battery);
 
   window_destroy(s_window);
 }
