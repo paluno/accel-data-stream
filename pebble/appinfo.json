@@ -1,18 +1,25 @@
 {
-  "uuid": "bb039a8e-f72f-43fc-85dc-fd2516c7f328",
-  "shortName": "Accel Data Stream",
-  "longName": "Accel Data Stream",
-  "companyName": "Pebble",
-  "versionLabel": "1.0",
-  "sdkVersion": "3",
-  "targetPlatforms": ["aplite", "basalt", "chalk"],
-  "watchapp": {
-    "watchface": false
-  },
-  "appKeys": {
-    "dummy": 0
-  },
-  "resources": {
-    "media": []
-  }
+    "appKeys": {
+        "dummy": 0
+    },
+    "capabilities": [
+        ""
+    ],
+    "companyName": "paluno",
+    "enableMultiJS": false,
+    "longName": "Accelerometer Logger",
+    "projectType": "native",
+    "resources": {
+        "media": []
+    },
+    "sdkVersion": "3",
+    "shortName": "Accelerometer Logger",
+    "targetPlatforms": [
+        "aplite"
+    ],
+    "uuid": "40f5f000-e15c-4eb6-974d-36c3b4dcf2e9",
+    "versionLabel": "1.0",
+    "watchapp": {
+        "watchface": false
+    }
 }
