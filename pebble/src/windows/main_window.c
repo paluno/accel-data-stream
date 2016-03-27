@@ -9,13 +9,14 @@ static TextLayer *s_text_layer_info;
 static TextLayer *s_text_layer_data;
 static TextLayer *s_text_layer_battery;
 
-static AppTimer *s_packets_per_second_timer;
-
 static bool s_sending;
 static int s_send_counter, s_packets_per_second;
 
 static int s_hand_sequence = 0;  // how many of the sequence of keys to change the hand have been pressed?
 static bool s_f_left_hand;
+
+#ifndef USE_DATALOGGING
+static AppTimer *s_packets_per_second_timer;
 
 static void packets_per_second_handler(void *context) {
   s_packets_per_second = s_send_counter;
@@ -30,18 +31,21 @@ static void packets_per_second_handler(void *context) {
   s_send_counter = 0;
   app_timer_register(1000, packets_per_second_handler, NULL);
 }
+#endif
 
 static void send(AccelData *data, uint32_t num_samples) {
-  if(comm_send_data(data, num_samples)) {
+  if(SEND_DATA(data, num_samples)) {
     window_set_background_color(s_window, GColorGreen);
     s_send_counter++;
+  }
+  else {
+    text_layer_set_text(s_text_layer_info, "Transmission error!");
   }
 }
 
 static void accel_data_handler(AccelData *data, uint32_t num_samples) {
   // If ready to send
-  if(comm_is_busy()) {
-//  if(0) {
+  if(IS_BUSY()) {
     APP_LOG(APP_LOG_LEVEL_WARNING, "Accel sample arrived early");
     window_set_background_color(s_window, GColorRed);
   } else {
@@ -71,11 +75,15 @@ static void select_click_handler(ClickRecognizerRef recognizer, void *context) {
     accel_data_service_subscribe(SAMPLES_PER_UPDATE, accel_data_handler);
 
     text_layer_set_text(s_text_layer_info, "Started");
+  #ifdef USE_DATALOGGING
+    commlog_start();
+  #else  
     if(s_packets_per_second_timer) {
       app_timer_cancel(s_packets_per_second_timer);
     }
     s_packets_per_second_timer = app_timer_register(1000, packets_per_second_handler, NULL);
     window_set_background_color(s_window, GColorOrange);
+  #endif
   } else {
     // Stop sending data
     s_sending = false;
@@ -83,16 +91,20 @@ static void select_click_handler(ClickRecognizerRef recognizer, void *context) {
     accel_data_service_unsubscribe();
 
     text_layer_set_text(s_text_layer_info, "Stopped");
+  #ifdef USE_DATALOGGING
+    commlog_stop();
+  #else  
     if(s_packets_per_second_timer) {
       app_timer_cancel(s_packets_per_second_timer);
       s_packets_per_second_timer = NULL;
     }
+  #endif
     window_set_background_color(s_window, GColorDarkGray);
   }
 }
 
 static void change_hand() {
-  s_hand_sequence == 0
+  s_hand_sequence = 0;
   s_f_left_hand = !s_f_left_hand;
   if (s_f_left_hand) {
     text_layer_set_text(s_text_layer_hand, "L");
