@@ -17,7 +17,7 @@ public class MainActivity extends AppCompatActivity {
     private static final String TAG = MainActivity.class.getName();
 
     // UUID must match that of the watchapp
-    private static final UUID APP_UUID = UUID.fromString("bb039a8e-f72f-43fc-85dc-fd2516c7f328");
+    private static final UUID APP_UUID = UUID.fromString("40f5f000-e15c-4eb6-974d-36c3b4dcf2e9");
 
     private static final int SAMPLES_PER_UPDATE = 5;   // Must match the watchapp value
     private static final int ELEMENTS_PER_PACKAGE = 3;
