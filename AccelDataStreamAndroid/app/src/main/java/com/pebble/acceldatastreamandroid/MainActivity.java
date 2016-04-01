@@ -1,5 +1,6 @@
 package com.pebble.acceldatastreamandroid;
 
+import android.annotation.TargetApi;
 import android.os.Environment;
 import android.support.v7.app.ActionBar;
 import android.content.Context;
@@ -75,13 +76,13 @@ public class MainActivity extends AppCompatActivity {
         bToggleSaveComment.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                bCommentText = (EditText)findViewById(R.id.editText);
-                if(isFileOpen()) {
+                bCommentText = (EditText) findViewById(R.id.editText);
+                if (isFileOpen()) {
                     String comment = bCommentText.getText().toString();
                     Date date = new Date();
-                    try{
+                    try {
                         bufferedWriter.write(date + "," + comment + "\n");
-                    }catch (IOException e){
+                    } catch (IOException e) {
                         Log.e(TAG, "Saving comment failed: " + e.getLocalizedMessage());
                         e.printStackTrace();
                     }
@@ -203,14 +204,27 @@ public class MainActivity extends AppCompatActivity {
 
     private File getLogStorageDir(String logsName)
     {
-        // Get the directory for the user's public pictures directory.
-        File file = new File(getExternalFilesDir(Environment.DIRECTORY_DOCUMENTS), logsName);
-        if (!file.mkdirs())
-        {
 
+        if (android.os.Build.VERSION.SDK_INT >= 19) {
+            // Get the directory for the user's public pictures directory.
+            File file = new File(getExternalFilesDir(Environment.DIRECTORY_DOCUMENTS), logsName);
+            if (!file.mkdirs())
+            {
+
+            }
+            return file;
+        }else {
+            File file = new File(getExternalFilesDir(Environment.getExternalStorageDirectory() + "/Documents"), logsName);
+            if (!file.mkdirs())
+            {
+
+            }
+            return file;
         }
-        return file;
+
     }
+
+
 
     private boolean closeFile(){
         if(isFileOpen()) {
