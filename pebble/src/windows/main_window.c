@@ -10,46 +10,30 @@ static TextLayer *s_text_layer_data;
 static TextLayer *s_text_layer_battery;
 
 static bool s_sending;
-static int s_send_counter, s_packets_per_second;
+static int s_send_counter;
 
 static int s_hand_sequence = 0;  // how many of the sequence of keys to change the hand have been pressed?
 static bool s_f_left_hand;
 
-#ifndef USE_DATALOGGING
-static AppTimer *s_packets_per_second_timer;
+static void update_data_sent() {
+  static char data_sent_text[9];
+  uint data_sent_current = get_commlog_data_sent() / 1000;
+  static uint data_sent_last = -1;
+  if (data_sent_last == data_sent_current)
+    return;  // info is up-to-date enough
+  data_sent_last = data_sent_current;
 
-static void packets_per_second_handler(void *context) {
-  s_packets_per_second = s_send_counter;
-  const int samples_per_second = s_packets_per_second * SAMPLES_PER_UPDATE;
-
-  if(s_sending) {
-    static char s_buff[32];
-    snprintf(s_buff, sizeof(s_buff), "%d packets/s\n(%d samples/s)", s_packets_per_second, samples_per_second);
-    text_layer_set_text(s_text_layer_info, s_buff);
-  }
-
-  s_send_counter = 0;
-  app_timer_register(1000, packets_per_second_handler, NULL);
-}
-#endif
-
-static void send(AccelData *data, uint32_t num_samples) {
-  if(SEND_DATA(data, num_samples)) {
-    window_set_background_color(s_window, GColorGreen);
-    s_send_counter++;
-  }
-  else {
-    text_layer_set_text(s_text_layer_info, "Transmission error!");
-  }
+  snprintf(data_sent_text, sizeof(data_sent_text), "%d KB", data_sent_current);
+  text_layer_set_text(s_text_layer_data, data_sent_text);
 }
 
 static void accel_data_handler(AccelData *data, uint32_t num_samples) {
-  // If ready to send
-  if(IS_BUSY()) {
-    APP_LOG(APP_LOG_LEVEL_WARNING, "Accel sample arrived early");
-    window_set_background_color(s_window, GColorRed);
-  } else {
-    send(data, num_samples);
+  if(commlog_send_data(data, num_samples)) {
+    s_send_counter++;
+    update_data_sent();    
+  }
+  else {
+    text_layer_set_text(s_text_layer_info, "Transmission error!");
   }
 }
 
@@ -64,42 +48,42 @@ static void battery_handler(BatteryChargeState charge_state) {
   text_layer_set_text(s_text_layer_battery, battery_text);
 }
 
+static void begin_sending_data() {
+  if(s_sending)
+    return;  // has already begun
+
+  // Begin sending data
+  s_sending = true;
+
+  accel_service_set_sampling_rate(ACCEL_SAMPLING_25HZ);
+  accel_data_service_subscribe(SAMPLES_PER_UPDATE, accel_data_handler);
+
+  text_layer_set_text(s_text_layer_info, "Started");
+
+  commlog_start();
+}
+
+static void stop_sending_data() {
+  if(!s_sending)
+    return;  // does not send currently
+
+  // Stop sending data
+  s_sending = false;
+
+  accel_data_service_unsubscribe();
+
+  text_layer_set_text(s_text_layer_info, "Stopped");
+
+  commlog_stop();
+}
+
 static void select_click_handler(ClickRecognizerRef recognizer, void *context) {
   s_hand_sequence = 0;
   
   if(!s_sending) {
-    // Begin sending data
-    s_sending = true;
-
-    accel_service_set_sampling_rate(ACCEL_SAMPLING_25HZ);
-    accel_data_service_subscribe(SAMPLES_PER_UPDATE, accel_data_handler);
-
-    text_layer_set_text(s_text_layer_info, "Started");
-  #ifdef USE_DATALOGGING
-    commlog_start();
-  #else  
-    if(s_packets_per_second_timer) {
-      app_timer_cancel(s_packets_per_second_timer);
-    }
-    s_packets_per_second_timer = app_timer_register(1000, packets_per_second_handler, NULL);
-    window_set_background_color(s_window, GColorOrange);
-  #endif
+    begin_sending_data();
   } else {
-    // Stop sending data
-    s_sending = false;
-
-    accel_data_service_unsubscribe();
-
-    text_layer_set_text(s_text_layer_info, "Stopped");
-  #ifdef USE_DATALOGGING
-    commlog_stop();
-  #else  
-    if(s_packets_per_second_timer) {
-      app_timer_cancel(s_packets_per_second_timer);
-      s_packets_per_second_timer = NULL;
-    }
-  #endif
-    window_set_background_color(s_window, GColorDarkGray);
+    stop_sending_data();
   }
 }
 
@@ -175,12 +159,21 @@ static void window_load(Window *window) {
   layer_add_child(window_layer, text_layer_get_layer(s_text_layer_battery));
   
   change_hand();
+  update_data_sent();
   
   battery_state_service_subscribe(battery_handler);
-  battery_handler(battery_state_service_peek());  
+  battery_handler(battery_state_service_peek()); 
+  
+  registerStartCallback(begin_sending_data);
+  registerStopCallback(stop_sending_data);
 }
 
 static void window_unload(Window *window) {
+  registerStartCallback(NULL);
+  registerStopCallback(NULL);
+  
+  battery_state_service_unsubscribe();
+  
   text_layer_destroy(s_text_layer_hand);
   text_layer_destroy(s_text_layer_info);
   text_layer_destroy(s_text_layer_data);
@@ -192,7 +185,6 @@ static void window_unload(Window *window) {
 void main_window_push() {
   s_sending = false;
   s_send_counter = 0;
-  s_packets_per_second = 0;
 
   s_window = window_create();
   window_set_click_config_provider(s_window, click_config_provider);
