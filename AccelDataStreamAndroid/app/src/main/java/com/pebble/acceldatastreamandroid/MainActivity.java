@@ -82,7 +82,9 @@ public class MainActivity extends AppCompatActivity {
                     Date date = new Date();
                     try {
                         bufferedWriter.write(date + "," + comment + "\n");
+                        mTextView.setText("Saved comment successfully");
                     } catch (IOException e) {
+                        mTextView.setText("Saving comment failed");
                         Log.e(TAG, "Saving comment failed: " + e.getLocalizedMessage());
                         e.printStackTrace();
                     }
@@ -131,7 +133,7 @@ public class MainActivity extends AppCompatActivity {
         dataLoggingReceiver = new PebbleKit.PebbleDataLogReceiver(APP_UUID) {
                 @Override
                 public void receiveData(Context context, UUID logUuid, Long timestamp, Long tag, byte[] data) {
-                    System.out.println("ReceiveData!!!");
+                    //System.out.println("ReceiveData!!!");
                     try {
                         AccelData accelData = AccelData.createFromBytes(data);
 
@@ -139,12 +141,17 @@ public class MainActivity extends AppCompatActivity {
                             bufferedWriter.write(accelData.timestamp + "," + accelData.x + "," + accelData.y + "," + accelData.z + "\n");
                         }
 
-                        System.out.println("Data logging fired:" + accelData.did_vibrate + "," + accelData.timestamp + "," + accelData.x + "," + accelData.y + "," + accelData.z);
+                        //System.out.println("Data logging fired:" + accelData.did_vibrate + "," + accelData.timestamp + "," + accelData.x + "," + accelData.y + "," + accelData.z);
 
                         sampleCount ++;
 
+                        if(sampleCount%1000 == 1) {
+                            mTextView.setText("Processing data: sample " + String.valueOf(sampleCount));
+                        }
+
 
                     } catch (Exception e) {
+                        mTextView.setText("There was an error receiving data");
                         Log.e(TAG, "Data log receiver failed: " + e.getLocalizedMessage());
                         e.printStackTrace();
                     }
@@ -267,7 +274,7 @@ public class MainActivity extends AppCompatActivity {
             bufferedWriter = new BufferedWriter(logFile);
             return true;
         } catch (IOException e) {
-            Log.e(TAG, "Error openening log file: " + e.getLocalizedMessage());
+            Log.e(TAG, "Error opening log file: " + e.getLocalizedMessage());
             e.printStackTrace();
             return false;
         }
